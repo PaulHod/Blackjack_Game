@@ -22,19 +22,36 @@ class Hand:
         self.shoe = shoe
         self.standing = False
         self.state = ""
-
         if cards is None:
             self.cards = [self.shoe.draw(), self.shoe.draw()]
         else:
             self.cards = cards
+        self.count()
 
     # Adds a new card to hand
     def hit(self):
         self.cards.append(self.shoe.draw())
+        self.count()
 
     # Changes the status to stand
     def stand(self):
         self.standing = True
+
+    # Calculates Total
+    def count(self):
+        self.total = 0
+        self.soft = False
+        
+        # Calculate Hard Total
+        for card in self.cards:
+            self.total += self.deck[card]
+            if card == "A" and not self.soft:
+                self.total += 10
+                self.soft = True
+        
+        if self.soft == True and self.total > 21:
+            self.total -= 10
+            self.soft = False
 
 class Dealer(Hand):
     def __init__(self, shoe, st17):
@@ -42,43 +59,48 @@ class Dealer(Hand):
         self.showing = self.cards[0]
         self.STAND_ON_SOFT_17 = st17
 
+    def hit(self):
+        super().hit()
+        print("Dealer Hits")
+
+    def stand(self):
+        super().stand()
+        if self.state == "bust":
+            print("Dealer Busts")
+        else:
+            print("Dealer Stands")
+
     # Calculates total and descides move
-    def analyze(self):
-        self.total = 0
-        soft = False
+    def play(self):
+        while not self.standing:
+            self.count()
+            self.print()
 
-        # Calculate total
-        for card in self.cards:
-            self.total += self.deck[card]
-
-            if card == "A" and not soft:
-                self.total += 10
-                soft = True
-
-        # Convert soft Ace from 11 -> 1 if necessary
-        if soft and self.total > 21:
-            self.total -= 10
-            soft = False
-
-        # Determine dealer state
-        if self.total > 21:
-            self.state = "bust"
-            self.stand()
-        elif self.total > 17:
-            self.state = "stand"
-            self.stand()
-        elif self.total == 17:
-            # Hard 17 always stands
-            # Soft 17 depends on casino rules
-            if not soft or self.STAND_ON_SOFT_17:
+            # Determine dealer state
+            if self.total > 21:
+                self.state = "bust"
+                self.stand()
+            elif self.total > 17:
                 self.state = "stand"
                 self.stand()
+            elif self.total == 17:
+                # Hard 17 always stands
+                # Soft 17 depends on casino rules
+                if not self.soft or self.STAND_ON_SOFT_17:
+                    self.state = "stand"
+                    self.stand()
+                else:
+                    self.state = "hit"
+                    self.hit()
             else:
                 self.state = "hit"
-        else:
-            self.state = "hit"
+                self.hit()
 
         return self.state
+
+    # Prints the dealer's hand
+    def print(self):
+        print("Dealer:", self.cards, f"({self.total})")
 
 class Player_Hand(Hand):
     def __init__(self, shoe, bet, cards = None):
@@ -90,6 +112,7 @@ class Player_Hand(Hand):
         self.bet *= 2
         self.hit()
         self.stand()
+        self.print(True)
 
     def split(self):
         split_card = self.cards.pop()
@@ -106,19 +129,7 @@ class Player_Hand(Hand):
 
     # Returns total and hard/soft
     def analyze(self):
-        self.total = 0
-        self.soft = False
-
-        # Calculate Hard Total
-        for card in self.cards:
-            self.total += self.deck[card]
-            if card == "A" and not self.soft:
-                self.total += 10
-                self.soft = True
-
-        if self.soft == True and self.total > 21:
-            self.total -= 10
-            self.soft = False
+        super().count()
 
         # Determine Hand Type
         if self.total > 21:
@@ -133,6 +144,41 @@ class Player_Hand(Hand):
             
         return self.state
 
+    def compare(self, dealer):
+        player_blackjack = (
+            self.total == 21
+            and len(self.cards) == 2
+            and not self.been_split
+        )
+
+        dealer_blackjack = (
+            dealer.total == 21
+            and len(dealer.cards) == 2
+        )
+
+        if self.state == "bust":
+            self.outcome = "loss"
+
+        # Deal with natural blackjacks
+        elif player_blackjack and dealer_blackjack:
+            self.outcome = "push"
+        elif player_blackjack:
+            self.outcome = "blackjack"
+        elif dealer_blackjack:
+            self.outcome = "loss"
+
+        # Deal with normal comparison
+        elif dealer.state == "bust":
+            self.outcome = "win"
+        elif self.total > dealer.total:
+            self.outcome = "win"
+        elif self.total == dealer.total:
+            self.outcome = "push"
+        else:
+            self.outcome = "loss"
+
+        return self.outcome
+            
     def print(self, calculate_total):
         if calculate_total:
             print("Hand:",self.cards,f"({self.total})")

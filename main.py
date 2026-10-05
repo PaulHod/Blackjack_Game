@@ -22,9 +22,14 @@ from rules import *
 occurences = [np.zeros((10,10),dtype=int),
               np.zeros((8,10),dtype=int),
               np.zeros((10,10),dtype=int)]
+
 correct = [np.zeros((10,10),dtype=int),
            np.zeros((8,10),dtype=int),
            np.zeros((10,10),dtype=int)]
+
+if COUNTING_ENABLED:
+    count_occurences = 0
+    count_correct = 0
 
 #-----------#
 # Game Loop #
@@ -51,13 +56,14 @@ while playing:
     # Check for player blackjack
     if hands[0].total == 21 and len(hands[0].cards) == 2:
         hands[0].stand()
-        hands[0].print()
+        hands[0].print(True)
         print("Blackjack")
     # Check for dealer blackjack
     if dealer.total == 21 and len(dealer.cards) == 2:
         hands[0].analyze()
         outcome = hands[0].compare(dealer)
         print(f"Dealer Blackjack: {outcome}")
+        hands[0].print(True)
         playing = input("Another Hand? (y/n) ").upper() == 'Y'
         continue
 
@@ -118,9 +124,7 @@ while playing:
                             print("Invalid option")
                         
                     case '4':
-                        option = move(dealer.showing, hand)
-                        print("\n",option.upper(),"\n")
-                        match option:
+                        match correct_choice:
                             case "stand":
                                 hand.stand()
                             case "hit":
@@ -136,9 +140,12 @@ while playing:
             if choice == correct_choice:
                 correct[i][j][k] += 1
                 print("-------\nCORRECT\n-------")
+            elif choice == '4':
+                print("----\nHINT\n----")
+                print("\n",correct_choice.upper(),"\n")
             else:
                 print("---------\nINCORRECT\n---------")
-                print(move(dealer.showing, hand))
+                print(correct_choice)
 
             hand.analyze()
             if hand.state == "bust":
@@ -157,7 +164,16 @@ while playing:
         outcome = hand.compare(dealer)
         print(f"Hand {i+1}: {outcome}")
     
-
+    # Test running count
+    if COUNTING_ENABLED:
+        count_occurences += 1
+        running_count_guess = int(input("Running Count? "))
+        if running_count_guess == shoe.count:
+            count_correct +=1
+            print("-------\nCORRECT\n-------")
+        else:
+            print("---------\nINCORRECT\n---------")
+            print(f"Running Count: {shoe.count}")
                 
     playing = input("Another Hand? (y/n) ").capitalize() == 'Y'
 
@@ -170,8 +186,6 @@ for i, grade in enumerate(grades):
     where=occurences[i] != 0
     )
 
-print(grades)
-
 hand = ['hard ','soft ','pairs']
 for i, grade in enumerate(grades):
     if occurences[i].sum() != 0:
@@ -182,4 +196,6 @@ for i, grade in enumerate(grades):
         )
         print(f"{hand[i]}: {100*weighted_average:.1f}% accuracy")
     else:
-        print("not played")
+        print(f"{hand[i]} not played")
+
+print(f"Counting {100*count_correct/count_occurences:.1f}% Accurate")

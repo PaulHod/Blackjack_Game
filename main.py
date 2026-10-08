@@ -1,8 +1,10 @@
+import numpy as np
+
 from shoe import Shoe
 from hand import Dealer, Player_Hand
-import numpy as np
 from move import move, DEALER_INDICES
 from rules import *
+from tests import Count_Test, Bet_Test
 
 # TODO
     # Implement money
@@ -27,21 +29,24 @@ correct = [np.zeros((10,10),dtype=int),
            np.zeros((8,10),dtype=int),
            np.zeros((10,10),dtype=int)]
 
+shoe = Shoe(DECKS)
+
 if COUNTING_ENABLED:
-    count_occurences = 0
-    count_correct = 0
+    count_test = Count_Test(shoe)
+
+if MONEY:
+    bet_test = Bet_Test(shoe, STARTING_CASH)
 
 #-----------#
 # Game Loop #
 #-----------#
 
-shoe = Shoe(DECKS)
 playing = input("Another Hand? (y/n) ").upper() == 'Y'
 while playing:
-    # Bet
+
+    # Betting
     if MONEY:
-        print("Working on it")
-        # TODO: ORGANIZE BETTING & Counting
+        bet = bet_test.asses()
     else:
         bet = 0
 
@@ -64,6 +69,8 @@ while playing:
         outcome = hands[0].compare(dealer)
         print(f"Dealer Blackjack: {outcome}")
         hands[0].print(True)
+        if COUNTING_ENABLED:
+            count_test.assess()
         playing = input("Another Hand? (y/n) ").upper() == 'Y'
         continue
 
@@ -162,18 +169,24 @@ while playing:
     # Calculate outcomes:
     for i, hand in enumerate(hands):
         outcome = hand.compare(dealer)
-        print(f"Hand {i+1}: {outcome}")
-    
+        if MONEY:
+            if outcome == "loss":
+                winnings = -hand.bet
+            elif outcome == "win":
+                winnings = hand.bet
+            elif outcome == "blackjack":
+                winnings = int(hand.bet*1.5)
+            else:
+                # Nothing!
+                winnings = 0
+            bet_test.balance += winnings
+            print(f"Hand {i+1}: {outcome} ${winnings}")
+        else:
+            print(f"Hand {i+1}: {outcome}")
+
     # Test running count
     if COUNTING_ENABLED:
-        count_occurences += 1
-        running_count_guess = int(input("Running Count? "))
-        if running_count_guess == shoe.count:
-            count_correct +=1
-            print("-------\nCORRECT\n-------")
-        else:
-            print("---------\nINCORRECT\n---------")
-            print(f"Running Count: {shoe.count}")
+        count_test.assess()
                 
     playing = input("Another Hand? (y/n) ").capitalize() == 'Y'
 
@@ -198,4 +211,8 @@ for i, grade in enumerate(grades):
     else:
         print(f"{hand[i]} not played")
 
-print(f"Counting {100*count_correct/count_occurences:.1f}% Accurate")
+if COUNTING_ENABLED:
+    print(count_test.result())
+
+if MONEY:
+    print(bet_test.result())
